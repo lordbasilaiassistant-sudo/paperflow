@@ -1,5 +1,138 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><title>paperflow</title></head>
-<body>placeholder — real UI lands in P2</body>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>paperflow — invoices in, data out</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Besley:ital,wght@0,500;0,700;1,500&family=Archivo:wght@400;500;600&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#129534;</text></svg>">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="brand">
+      <h1>paperflow</h1>
+      <p class="brand-sub">invoices &amp; receipts in&ensp;&middot;&ensp;ledger data out</p>
+    </div>
+    <nav class="masthead-actions">
+      <div class="export-group">
+        <a class="btn btn-quiet" href="/api/export.csv?mode=documents" download>Export documents.csv</a>
+        <a class="btn btn-quiet" href="/api/export.csv?mode=line_items" download>Export line_items.csv</a>
+      </div>
+    </nav>
+  </div>
+  <div class="ledger-summary" id="summary" hidden>
+    <span><b id="s-total">0</b> processed</span>
+    <span class="sum-rule"></span>
+    <span><b id="s-auto">0%</b> auto-accepted</span>
+    <span class="sum-rule"></span>
+    <span><b id="s-review">0</b> awaiting review</span>
+    <span class="sum-rule"></span>
+    <span><b id="s-approved">0</b> approved</span>
+  </div>
+</header>
+
+<main id="view-queue" class="view">
+  <section class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload an invoice or receipt">
+    <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg,.webp" multiple hidden>
+    <div class="dropzone-art" aria-hidden="true">
+      <div class="paper-stack">
+        <div class="sheet sheet-3"></div>
+        <div class="sheet sheet-2"></div>
+        <div class="sheet sheet-1">
+          <span class="sheet-line w-70"></span>
+          <span class="sheet-line w-45"></span>
+          <span class="sheet-line w-60"></span>
+          <span class="sheet-rule"></span>
+          <span class="sheet-line w-35 right"></span>
+        </div>
+      </div>
+    </div>
+    <div class="dropzone-copy">
+      <h2>Drop an invoice or receipt</h2>
+      <p>PDF, PNG, or JPG — even a crooked phone photo. It comes back as structured data,
+         checked against its own arithmetic.</p>
+      <span class="btn btn-ink">Choose files</span>
+    </div>
+  </section>
+
+  <section class="queue-section">
+    <div class="queue-head">
+      <h2 class="section-title">Document ledger</h2>
+      <div class="filters" role="tablist" aria-label="Filter documents">
+        <button class="filter is-active" data-filter="all">All</button>
+        <button class="filter" data-filter="needs_review">Needs review</button>
+        <button class="filter" data-filter="auto_accepted">Auto-accepted</button>
+        <button class="filter" data-filter="approved">Approved</button>
+      </div>
+    </div>
+    <div class="ledger" id="ledger">
+      <div class="ledger-empty" id="ledger-empty">
+        <p>The ledger is empty. Drop a document above to make the first entry.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<main id="view-doc" class="view" hidden>
+  <div class="doc-topbar">
+    <button class="btn btn-quiet" id="back-btn">&larr; Back to ledger</button>
+    <div class="doc-title">
+      <span class="doc-filename" id="doc-filename"></span>
+      <span class="doc-id mono" id="doc-meta"></span>
+    </div>
+    <div class="doc-topbar-status" id="doc-status-stamp"></div>
+  </div>
+
+  <div class="split">
+    <section class="pane pane-image">
+      <div class="image-frame" id="image-frame">
+        <img id="doc-image" alt="Scanned document page 1">
+        <div class="image-missing" id="image-missing" hidden>No preview available for this file.</div>
+      </div>
+      <details class="source-text">
+        <summary>Source text the model saw</summary>
+        <pre id="doc-rawtext" class="mono"></pre>
+      </details>
+    </section>
+
+    <section class="pane pane-fields">
+      <div class="issues" id="issues"></div>
+
+      <form id="field-form" autocomplete="off">
+        <div class="field-grid" id="field-grid"></div>
+
+        <h3 class="section-title items-title">Line items <span class="mono item-sum" id="item-sum"></span></h3>
+        <table class="items-table" id="items-table">
+          <thead>
+            <tr><th>Description</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Amount</th><th></th></tr>
+          </thead>
+          <tbody id="items-body"></tbody>
+        </table>
+        <button type="button" class="btn btn-quiet btn-small" id="add-item">+ Add line item</button>
+
+        <div class="doc-actions">
+          <div class="doc-conf" id="doc-conf"></div>
+          <div class="doc-buttons">
+            <button type="submit" class="btn btn-ink" id="save-btn">Save &amp; re-check</button>
+            <button type="button" class="btn btn-approve" id="approve-btn">Approve</button>
+          </div>
+        </div>
+      </form>
+    </section>
+  </div>
+</main>
+
+<div class="stamp-overlay" id="stamp-overlay" hidden>
+  <div class="stamp stamp-big stamp-green">APPROVED</div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="/static/app.js"></script>
+</body>
 </html>
