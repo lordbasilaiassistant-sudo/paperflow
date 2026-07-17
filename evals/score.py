@@ -122,9 +122,22 @@ def score_document(truth: dict, pred: dict) -> dict:
 
     field_acc = sum(fields.values()) / len(fields)
     all_correct = all(v == 1.0 for v in fields.values())
+
+    # "Material" = the fields you'd actually post to a ledger: who, when, how much,
+    # in what currency, and the line amounts. A slightly-off line-item DESCRIPTION
+    # (an OCR token) is not a posting error, so it doesn't count here. This is the
+    # metric that means "safe to auto-accept without a human".
+    amounts_ok = all(v == 1.0 for v in (li_detail.get("amount") or []))
+    material_correct = (
+        all(fields[f] == 1.0 for f in ("vendor", "date", "total", "currency"))
+        and fields["subtotal"] == 1.0
+        and fields["tax"] == 1.0
+        and amounts_ok
+    )
     return {
         "fields": fields,
         "field_accuracy": field_acc,
         "all_correct": all_correct,
+        "material_correct": material_correct,
         "line_item_attrs": li_detail,
     }

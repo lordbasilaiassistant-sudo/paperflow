@@ -71,8 +71,14 @@ def generate(n_limit: int | None = None) -> list[dict]:
                 return records
             rng = random.Random(MASTER_SEED + idx * 131)
             layout = "receipt" if kwargs.get("edge") == "no_line_prices" else rng.choice(LAYOUTS)
-            date_style = rng.choice(DATE_STYLES)
             truth = gen_data.make_invoice(rng, **kwargs)
+            # Use a date format the currency's home locale would actually print, so
+            # a GBP invoice doesn't get a US MM/DD date. "compact" (Sep 16 '26) is
+            # kept in both pools as the out-of-distribution case the parser can't handle.
+            if truth["currency"] in ("USD", "CAD"):
+                date_style = rng.choice(["us", "iso", "long", "compact"])
+            else:
+                date_style = rng.choice(["dots", "long", "iso", "compact"])
 
             fid = f"{idx:03d}_{kind}"
             pdf_path = FIXTURES_DIR / f"{fid}.pdf"

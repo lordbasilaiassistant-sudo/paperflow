@@ -20,7 +20,10 @@ DAY_FIRST_CURRENCIES = {"EUR", "GBP", "AUD", "NZD", "INR", "CHF", "SEK", "NOK", 
 _ISO_FORMATS = ["%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d"]
 _MONTH_FIRST = ["%m/%d/%Y", "%m-%d-%Y", "%m/%d/%y"]
 _DAY_FIRST = ["%d/%m/%Y", "%d-%m-%Y", "%d/%m/%y", "%d.%m.%Y"]
-_TEXT_FORMATS = ["%B %d, %Y", "%b %d, %Y", "%d %B %Y", "%d %b %Y", "%d-%b-%Y", "%b %d %Y"]
+_TEXT_FORMATS = [
+    "%B %d, %Y", "%b %d, %Y", "%d %B %Y", "%d %b %Y", "%d-%b-%Y", "%b %d %Y",
+    "%b %d '%y", "%B %d '%y", "%d %b '%y",  # abbreviated month, apostrophe 2-digit year
+]
 
 
 def parse_amount(value) -> float | None:

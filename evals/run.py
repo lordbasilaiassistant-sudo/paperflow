@@ -40,6 +40,7 @@ def _run_one(rec: dict) -> dict:
             "id": rec["id"], "category": rec["category"], "ok": True,
             "route": result.route, "doc_confidence": result.doc_confidence,
             "field_accuracy": sc["field_accuracy"], "all_correct": sc["all_correct"],
+            "material_correct": sc["material_correct"],
             "fields": sc["fields"], "line_item_attrs": sc["line_item_attrs"],
             "source_type": result.source_type,
             "prompt_tokens": result.prompt_tokens, "completion_tokens": result.completion_tokens,
@@ -80,10 +81,27 @@ def build_report(results: list[dict]) -> dict:
     auto = [r for r in ok if r["route"] == "auto_accept"]
     review = [r for r in ok if r["route"] == "needs_review"]
     false_accepts = [r for r in auto if not r["all_correct"]]
+    material_false_accepts = [r for r in auto if not r.get("material_correct", r["all_correct"])]
     caught = [r for r in review if not r["all_correct"]]  # correctly sent to review
 
     total_tokens = sum(r["prompt_tokens"] + r["completion_tokens"] for r in ok)
     total_cost = sum(r["cost_usd"] for r in ok)
+
+    # Threshold tradeoff: raising the auto-accept confidence bar moves borderline
+    # docs from auto-accept to review — fewer false accepts, less automation. Only
+    # docs that already cleared the other gates (no error, required fields grounded)
+    # are eligible, so this sweeps the confidence dimension of the same routing.
+    eligible = [r for r in ok if r["route"] == "auto_accept"]
+    sweep = []
+    for t in (0.80, 0.85, 0.90, 0.95):
+        a = [r for r in eligible if r["doc_confidence"] >= t]
+        mfa = [r for r in a if not r.get("material_correct", r["all_correct"])]
+        sweep.append({
+            "threshold": t, "auto_accepted": len(a),
+            "auto_accept_rate": len(a) / n if n else 0.0,
+            "material_false_accepts": len(mfa),
+            "material_false_accept_rate": len(mfa) / len(a) if a else 0.0,
+        })
 
     return {
         "n_total": len(results), "n_ok": n, "n_failed": len(failed),
@@ -109,8 +127,12 @@ def build_report(results: list[dict]) -> dict:
             "false_accepts": len(false_accepts),
             "false_accept_rate": len(false_accepts) / len(auto) if auto else 0.0,
             "false_accept_ids": [r["id"] for r in false_accepts],
+            "material_false_accepts": len(material_false_accepts),
+            "material_false_accept_rate": len(material_false_accepts) / len(auto) if auto else 0.0,
+            "material_false_accept_ids": [r["id"] for r in material_false_accepts],
             "review_correctly_flagged": len(caught),
         },
+        "threshold_sweep": sweep,
         "cost": {
             "total_tokens": total_tokens,
             "tokens_per_doc": total_tokens / n if n else 0,
@@ -155,9 +177,19 @@ def print_report(rep: dict) -> None:
     print(f"    needs-review:   {r['needs_review']}  ({(1-r['auto_accept_rate'])*100:.1f}%)   "
           f"field-acc {r['review_accuracy']*100:.1f}%")
     print(f"    false accepts:  {r['false_accepts']}  "
-          f"({r['false_accept_rate']*100:.1f}% of auto-accepted were not fully correct)")
-    if r["false_accept_ids"]:
-        print(f"                    ids: {', '.join(r['false_accept_ids'])}")
+          f"({r['false_accept_rate']*100:.1f}% of auto-accepted not 100% correct, incl. cosmetic)")
+    print(f"    MATERIAL false: {r['material_false_accepts']}  "
+          f"({r['material_false_accept_rate']*100:.1f}% auto-accepted with a wrong "
+          f"vendor/date/amount/currency)")
+    if r["material_false_accept_ids"]:
+        print(f"                    ids: {', '.join(r['material_false_accept_ids'])}")
+
+    if rep.get("threshold_sweep"):
+        print("\n  Auto-accept threshold tradeoff")
+        print("    thresh   auto-accepted   material false-accepts")
+        for s in rep["threshold_sweep"]:
+            print(f"    {s['threshold']:.2f}     {s['auto_accepted']:3d} ({s['auto_accept_rate']*100:4.1f}%)"
+                  f"      {s['material_false_accepts']:2d} ({s['material_false_accept_rate']*100:4.1f}%)")
 
     c = rep["cost"]
     print("\n  Cost")

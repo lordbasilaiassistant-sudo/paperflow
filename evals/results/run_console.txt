@@ -1,0 +1,65 @@
+Running pipeline over 118 fixtures (2 workers)…
+  10/118
+  20/118
+  30/118
+  40/118
+  50/118
+  60/118
+  70/118
+  80/118
+  90/118
+  100/118
+  110/118
+  118/118
+
+──────────────────────────────────────────────────────────────────
+  paperflow — extraction eval
+──────────────────────────────────────────────────────────────────
+  Documents:        118 scored
+  Field accuracy:   94.8%  (micro-avg over 8 fields)
+  Fully correct:    77/118  (65.3% of docs, every field right)
+
+  Per field
+    vendor        95.8%
+    date          99.2%
+    invoice_no   100.0%
+    subtotal      79.7%
+    tax           97.5%
+    total         95.8%
+    currency      94.9%
+    line_items    95.4%
+
+  Line-item attributes (matched rows)
+    description   98.9%
+    quantity      92.9%
+    unit_price    96.2%
+    amount        96.7%
+
+  Per category            n   field-acc   fully-correct   auto-accept
+    clean_pdf         30    100.0%       100.0%     100.0%
+    edge              24     97.9%        83.3%      75.0%
+    multipage         12    100.0%       100.0%     100.0%
+    photo             24     82.3%         8.3%      50.0%
+    scan              28     94.9%        46.4%      71.4%
+
+  Routing
+    auto-accepted:  92  (78.0%)   field-acc 98.1%
+    needs-review:   26  (22.0%)   field-acc 82.9%
+    false accepts:  21  (22.8% of auto-accepted not 100% correct, incl. cosmetic)
+    MATERIAL false: 11  (12.0% auto-accepted with a wrong vendor/date/amount/currency)
+                    ids: 030_scan, 034_scan, 040_scan, 061_photo, 062_photo, 070_photo, 094_edge_currency_ambiguous, 095_edge_currency_ambiguous, 096_edge_currency_ambiguous, 097_edge_currency_ambiguous, 112_edge_negative_total
+
+  Auto-accept threshold tradeoff
+    thresh   auto-accepted   material false-accepts
+    0.80      92 (78.0%)      11 (12.0%)
+    0.85      92 (78.0%)      11 (12.0%)
+    0.90      84 (71.2%)       7 ( 8.3%)
+    0.95      67 (56.8%)       4 ( 6.0%)
+
+  Cost
+    tokens/doc:     868
+    cost/doc:       $0.00000   (model priced at $0 — free tier)
+──────────────────────────────────────────────────────────────────
+
+  wall time: 583.3s
+
