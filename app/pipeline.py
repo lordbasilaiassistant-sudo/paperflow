@@ -32,7 +32,8 @@ def process(path: Path) -> PipelineResult:
     ext = extract.extract(ing.text)
     issues = validation.validate(ext.extraction)
     scored = confidence.score(
-        ext.extraction, ext.model_confidence, issues, parse_failed=ext.parse_failed
+        ext.extraction, ext.model_confidence, issues,
+        raw_text=ing.text, parse_failed=ext.parse_failed,
     )
     return PipelineResult(
         extraction=ext.extraction,

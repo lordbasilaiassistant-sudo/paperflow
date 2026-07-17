@@ -2,7 +2,25 @@
 
 Updated: 2026-07-17
 
-## Current phase: P1 complete → starting P2
+## Current phase: P1, P2 complete; P3 harness built + hardened (P3b) → full eval running
+
+## P3b hardening (from adversarial multi-agent review — 15 verified findings)
+The first eval was partly self-fulfilling. Fixed, verified by 41 unit tests + live sanity check:
+- **parse_amount**: `1.500`→1500 (was 1.5), `1.000.000`→1000000 (was None), `1,2`→1.2 (was 12). Real 1000x bugs.
+- **parse_date**: currency-aware day-first for ambiguous slash dates (EUR/GBP → DD/MM) instead of silent US default.
+- **validation**: arithmetic mismatches are now warnings (route to review) not errors — real invoices with
+  discounts/shipping/tax-inclusive totals legitimately don't reconcile. total-check requires tax present (no
+  treating missing tax as 0).
+- **confidence**: added SOURCE-TEXT GROUNDING — a value the model is confident about but that isn't in the
+  document is capped low; auto-accept gates on vendor+date+total being present, grounded, and above a floor.
+  This closes the "internally-consistent hallucination auto-accepts" hole. Arithmetic boost now requires
+  genuinely independent numbers (real line items), not a lone total equal to itself.
+- **eval scoring**: line items now score description/quantity/unit_price/amount (was amount-only), with a
+  per-attribute breakdown. Corpus adds non-reconciling docs (discount+shipping), currency ambiguity (CAD as
+  "$"), non-zero JPY tax, and an out-of-distribution date format ("Sep 16 '26") the normalizer does NOT handle
+  — so date/currency accuracy is earned, not guaranteed by round-tripping through the parser.
+- Corpus now 118 fixtures. Sanity check confirmed: compact dates fail honestly, CAD→USD miss is real,
+  adjustments route to review correctly.
 
 ## Verified (executed, output checked)
 - Unit tests: 32/32 passing (`py -m pytest`) — normalize, validation, confidence, JSON parsing, CSV export.

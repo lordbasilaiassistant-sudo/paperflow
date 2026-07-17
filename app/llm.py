@@ -4,6 +4,7 @@ Retries transient failures (429/5xx/timeouts) with exponential backoff so the
 free-tier rate limits don't turn into user-facing errors.
 """
 
+import random
 import time
 from dataclasses import dataclass
 
@@ -33,15 +34,25 @@ class LLMResponse:
 RETRIABLE = {429, 500, 502, 503, 504}
 
 
-def chat(messages: list[dict], *, temperature: float = 0.0, max_retries: int = 4, timeout: float = 120.0) -> LLMResponse:
+def _backoff(attempt: int, retry_after: str | None = None) -> None:
+    """Exponential backoff with jitter. Honors a numeric Retry-After when the
+    server sends one (free tiers often do)."""
+    if retry_after:
+        try:
+            time.sleep(min(float(retry_after), 30.0))
+            return
+        except ValueError:
+            pass
+    time.sleep(min(1.5 * (2**attempt), 30.0) + random.uniform(0, 1.0))
+
+
+def chat(messages: list[dict], *, temperature: float = 0.0, max_retries: int = 7, timeout: float = 120.0) -> LLMResponse:
     if not config.LLM_API_KEY:
         raise LLMError("LLM_API_KEY is not set. Copy .env.example to .env and add your key.")
     payload = {"model": config.LLM_MODEL, "messages": messages, "temperature": temperature}
     payload.update(config.LLM_EXTRA_BODY)
     last_err: Exception | None = None
     for attempt in range(max_retries + 1):
-        if attempt:
-            time.sleep(min(2**attempt, 20))
         try:
             r = httpx.post(
                 f"{config.LLM_BASE_URL}/chat/completions",
@@ -51,9 +62,11 @@ def chat(messages: list[dict], *, temperature: float = 0.0, max_retries: int = 4
             )
         except httpx.HTTPError as e:
             last_err = e
+            _backoff(attempt)
             continue
         if r.status_code in RETRIABLE:
             last_err = LLMError(f"HTTP {r.status_code}: {r.text[:200]}")
+            _backoff(attempt, retry_after=r.headers.get("Retry-After"))
             continue
         if r.status_code != 200:
             raise LLMError(f"HTTP {r.status_code}: {r.text[:500]}")

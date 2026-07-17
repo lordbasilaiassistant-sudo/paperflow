@@ -11,11 +11,16 @@ from datetime import datetime
 
 CURRENCY_SYMBOLS = {"$": "USD", "€": "EUR", "£": "GBP", "¥": "JPY", "₹": "INR"}
 
-DATE_FORMATS = [
-    "%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%m-%d-%Y", "%d-%m-%Y",
-    "%B %d, %Y", "%b %d, %Y", "%d %B %Y", "%d %b %Y", "%Y/%m/%d",
-    "%m/%d/%y", "%d.%m.%Y", "%Y.%m.%d",
-]
+# Currencies whose home locales write the day first (DD/MM). Used only to break
+# genuinely ambiguous slash dates (both parts <= 12); unambiguous dates parse the
+# same either way because strptime rejects an out-of-range month.
+DAY_FIRST_CURRENCIES = {"EUR", "GBP", "AUD", "NZD", "INR", "CHF", "SEK", "NOK", "DKK"}
+
+# Year-first is unambiguous and always tried first.
+_ISO_FORMATS = ["%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d"]
+_MONTH_FIRST = ["%m/%d/%Y", "%m-%d-%Y", "%m/%d/%y"]
+_DAY_FIRST = ["%d/%m/%Y", "%d-%m-%Y", "%d/%m/%y", "%d.%m.%Y"]
+_TEXT_FORMATS = ["%B %d, %Y", "%b %d, %Y", "%d %B %Y", "%d %b %Y", "%d-%b-%Y", "%b %d %Y"]
 
 
 def parse_amount(value) -> float | None:
@@ -30,18 +35,19 @@ def parse_amount(value) -> float | None:
     s = re.sub(r"[^\d.,\-]", "", s)
     if not s or s in ("-", ".", ","):
         return None
-    # 1.234,56 (European) vs 1,234.56 (US): whichever separator comes last is the decimal point.
+    negative = negative or s.startswith("-")
+    s = s.lstrip("-")
     if "," in s and "." in s:
+        # Both separators present: the one that appears LAST is the decimal point.
+        # 1.234,56 (European) -> 1234.56 ; 1,234.56 (US) -> 1234.56
         if s.rindex(",") > s.rindex("."):
             s = s.replace(".", "").replace(",", ".")
         else:
             s = s.replace(",", "")
     elif "," in s:
-        # A lone comma followed by exactly 2 digits is a decimal comma; otherwise a thousands separator.
-        if re.search(r",\d{2}$", s) and not re.search(r",\d{3}$", s):
-            s = s.replace(",", ".")
-        else:
-            s = s.replace(",", "")
+        s = _resolve_single_separator(s, ",")
+    elif "." in s:
+        s = _resolve_single_separator(s, ".")
     try:
         v = float(s)
     except ValueError:
@@ -49,15 +55,40 @@ def parse_amount(value) -> float | None:
     return round(-v if negative else v, 2)
 
 
-def parse_date(value) -> str | None:
-    """Return ISO YYYY-MM-DD, or None if the value can't be parsed."""
+def _resolve_single_separator(s: str, sep: str) -> str:
+    """Decide whether a lone separator is a decimal point or a thousands mark.
+
+    Rules tuned for invoice amounts, where 3+ decimal places are effectively
+    never used:
+      - separator appears more than once  -> thousands ("1.000.000" -> 1000000)
+      - one separator, exactly 3 digits after -> thousands ("1.500" -> 1500)
+      - one separator, 1-2 digits after      -> decimal   ("1,5" -> 1.5, "12.50" -> 12.50)
+    """
+    parts = s.split(sep)
+    if len(parts) > 2:
+        return s.replace(sep, "")
+    whole, frac = parts[0], parts[1]
+    if frac == "":
+        return whole
+    if len(frac) == 3 and whole != "":
+        return whole + frac  # thousands grouping
+    return whole + "." + frac  # decimal
+
+
+def parse_date(value, *, day_first: bool = False) -> str | None:
+    """Return ISO YYYY-MM-DD, or None if the value can't be parsed.
+
+    day_first only affects genuinely ambiguous slash dates (e.g. 05/06/2024);
+    an unambiguous date like 13/05/2024 parses to the same day regardless.
+    """
     if value is None:
         return None
     s = str(value).strip()
     if not s:
         return None
     s = re.sub(r"(\d)(st|nd|rd|th)\b", r"\1", s)
-    for fmt in DATE_FORMATS:
+    slash = (_DAY_FIRST + _MONTH_FIRST) if day_first else (_MONTH_FIRST + _DAY_FIRST)
+    for fmt in _ISO_FORMATS + slash + _TEXT_FORMATS:
         try:
             return datetime.strptime(s, fmt).date().isoformat()
         except ValueError:
@@ -84,8 +115,12 @@ def normalize_extraction(raw: dict) -> dict:
     out = dict(raw)
     for f in ("subtotal", "tax", "total"):
         out[f] = parse_amount(raw.get(f))
-    out["date"] = parse_date(raw.get("date")) or (str(raw.get("date")).strip() if raw.get("date") else None)
-    out["currency"] = parse_currency(raw.get("currency"))
+    currency = parse_currency(raw.get("currency"))
+    out["currency"] = currency
+    day_first = currency in DAY_FIRST_CURRENCIES
+    out["date"] = parse_date(raw.get("date"), day_first=day_first) or (
+        str(raw.get("date")).strip() if raw.get("date") else None
+    )
     for f in ("vendor", "invoice_no"):
         v = raw.get(f)
         out[f] = str(v).strip() if v is not None and str(v).strip() else None

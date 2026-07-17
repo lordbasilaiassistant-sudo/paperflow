@@ -11,13 +11,22 @@ from PIL import Image, ImageChops, ImageEnhance, ImageFilter
 from reportlab.lib.pagesizes import LETTER
 from reportlab.pdfgen import canvas as rl_canvas
 
-SYMBOLS = {"USD": "$", "EUR": "€", "GBP": "£", "JPY": "¥"}
+# CAD/AUD render with a bare "$", so the currency is genuinely ambiguous with USD
+# on the page — the model has to be wrong sometimes, which is the point.
+SYMBOLS = {"USD": "$", "EUR": "€", "GBP": "£", "JPY": "¥", "CAD": "$", "AUD": "$"}
+
+_MONTHS = ["", "January", "February", "March", "April", "May", "June", "July",
+           "August", "September", "October", "November", "December"]
 
 DATE_STYLES = {
     "iso": lambda y, m, d: f"{y:04d}-{m:02d}-{d:02d}",
     "us": lambda y, m, d: f"{m:02d}/{d:02d}/{y:04d}",
-    "long": lambda y, m, d: f"{['','January','February','March','April','May','June','July','August','September','October','November','December'][m]} {d}, {y}",
+    "long": lambda y, m, d: f"{_MONTHS[m]} {d}, {y}",
     "dots": lambda y, m, d: f"{d:02d}.{m:02d}.{y:04d}",
+    # Out-of-distribution style (abbreviated month, apostrophe 2-digit year) that
+    # the normalizer does NOT explicitly handle — so date accuracy is earned, not
+    # guaranteed by the fixture generator matching the parser.
+    "compact": lambda y, m, d: f"{_MONTHS[m][:3]} {d} '{y % 100:02d}",
 }
 
 
@@ -109,6 +118,16 @@ def render_pdf(truth: dict, out_path: Path, *, layout: str = "classic", date_sty
     if truth.get("tax") is not None:
         c.drawRightString(W - 160, y, "Tax:")
         c.drawRightString(W - 54, y, _fmt_money(truth["tax"], cur))
+        y -= 16
+    discount = meta.get("discount") or 0
+    shipping = meta.get("shipping") or 0
+    if discount:
+        c.drawRightString(W - 160, y, "Discount:")
+        c.drawRightString(W - 54, y, "-" + _fmt_money(discount, cur))
+        y -= 16
+    if shipping:
+        c.drawRightString(W - 160, y, "Shipping:")
+        c.drawRightString(W - 54, y, _fmt_money(shipping, cur))
         y -= 16
     c.setFont("Helvetica-Bold", 12)
     c.drawRightString(W - 160, y, "TOTAL:")

@@ -18,6 +18,22 @@ def test_amount_european():
     assert parse_amount("€99,50") == 99.50
 
 
+def test_amount_dot_thousands():
+    # lone dot with 3 trailing digits is a thousands separator, not a decimal
+    assert parse_amount("1.500") == 1500.0
+    assert parse_amount("1.234") == 1234.0
+    assert parse_amount("1.000.000") == 1000000.0
+    assert parse_amount("1.234.567") == 1234567.0
+
+
+def test_amount_single_decimal_digit():
+    # a comma or dot with 1-2 trailing digits is a decimal
+    assert parse_amount("1,2") == 1.2
+    assert parse_amount("1,5") == 1.5
+    assert parse_amount("12.50") == 12.50
+    assert parse_amount("99.9") == 99.9
+
+
 def test_amount_negative():
     assert parse_amount("-45.00") == -45.00
     assert parse_amount("(45.00)") == -45.00
@@ -40,6 +56,23 @@ def test_date_formats():
 def test_date_unparseable():
     assert parse_date("sometime last week") is None
     assert parse_date(None) is None
+
+
+def test_date_dayfirst_disambiguation():
+    # Ambiguous dates (both parts <= 12) resolve by locale hint.
+    assert parse_date("05/06/2024", day_first=False) == "2024-05-06"
+    assert parse_date("05/06/2024", day_first=True) == "2024-06-05"
+    # Unambiguous dates parse the same regardless of the hint.
+    assert parse_date("13/05/2024", day_first=False) == "2024-05-13"
+    assert parse_date("13/05/2024", day_first=True) == "2024-05-13"
+
+
+def test_date_currency_drives_dayfirst():
+    # A EUR document's ambiguous slash date is read day-first.
+    us = normalize_extraction({"date": "03/04/2024", "currency": "$"})
+    eu = normalize_extraction({"date": "03/04/2024", "currency": "€"})
+    assert us["date"] == "2024-03-04"
+    assert eu["date"] == "2024-04-03"
 
 
 def test_currency():

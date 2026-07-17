@@ -6,6 +6,7 @@ rendered to PNG so the review UI can show the document next to its fields.
 """
 
 import shutil
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -19,6 +20,12 @@ from app import config
 # Chars per page below which we assume the PDF is a scan and OCR it instead.
 MIN_TEXT_CHARS_PER_PAGE = 100
 RENDER_SCALE = 2.5  # ~180 dpi; enough for OCR without huge images
+
+# pypdfium2's page renderer and the tesseract subprocess bridge are not safe to
+# call from multiple threads at once (a concurrent call crashes the interpreter).
+# Serialize the native rendering/OCR work; the slow LLM step downstream is left
+# free to run concurrently, so this costs almost no wall time.
+_native_lock = threading.Lock()
 
 _tesseract_ready: bool | None = None
 
@@ -103,10 +110,11 @@ def _render_pdf_page(pdf: pdfium.PdfDocument, index: int) -> Image.Image:
 
 def ingest(path: Path) -> IngestResult:
     suffix = path.suffix.lower()
-    if suffix == ".pdf":
-        return _ingest_pdf(path)
-    if suffix in (".png", ".jpg", ".jpeg", ".webp", ".tiff", ".bmp"):
-        return _ingest_image(path)
+    with _native_lock:
+        if suffix == ".pdf":
+            return _ingest_pdf(path)
+        if suffix in (".png", ".jpg", ".jpeg", ".webp", ".tiff", ".bmp"):
+            return _ingest_image(path)
     raise ValueError(f"Unsupported file type: {suffix}")
 
 

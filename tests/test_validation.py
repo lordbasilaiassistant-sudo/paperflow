@@ -29,15 +29,36 @@ def test_missing_required():
     assert "missing_required" in got
 
 
-def test_line_sum_mismatch():
-    doc = {**GOOD, "subtotal": 30.0, "total": 32.0}
-    got = codes(validate(doc))
-    assert "sum_mismatch" in got
+def severities(issues, code):
+    return {i["severity"] for i in issues if i["code"] == code}
 
 
-def test_total_mismatch():
+def test_line_sum_mismatch_is_warning():
+    doc = {**GOOD, "subtotal": 30.0, "total": 32.0, "tax": 2.0}
+    issues = validate(doc)
+    assert "sum_mismatch" in codes(issues)
+    # A mismatch may be a legit discount/shipping row, so it's a warning, not an error.
+    assert severities(issues, "sum_mismatch") == {"warning"}
+
+
+def test_total_mismatch_is_warning():
     doc = {**GOOD, "total": 99.0}
-    assert "total_mismatch" in codes(validate(doc))
+    issues = validate(doc)
+    assert "total_mismatch" in codes(issues)
+    assert severities(issues, "total_mismatch") == {"warning"}
+
+
+def test_total_check_skipped_when_tax_missing():
+    # Missing tax must not be treated as 0 (that would let subtotal == total reconcile falsely).
+    doc = {**GOOD, "tax": None, "subtotal": 25.0, "total": 25.0}
+    assert "total_mismatch" not in codes(validate(doc))
+
+
+def test_adjustments_total_does_not_error():
+    # discount + shipping: total legitimately != subtotal + tax -> warning only, no error
+    doc = {**GOOD, "subtotal": 25.0, "tax": 2.0, "total": 22.0}  # 25+2-5 discount
+    issues = validate(doc)
+    assert not any(i["severity"] == "error" for i in issues)
 
 
 def test_tolerance_penny():

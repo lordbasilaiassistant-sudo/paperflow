@@ -124,7 +124,9 @@ def update_fields(doc_id: str, extraction: Extraction):
             raise HTTPException(404, "No such document")
         ex = extraction.model_dump()
         issues = validation.validate(ex)
-        scored = confidence.score(ex, doc.get("model_confidence") or {}, issues)
+        scored = confidence.score(
+            ex, doc.get("model_confidence") or {}, issues, raw_text=doc.get("raw_text") or "",
+        )
         db.update_document(
             conn, doc_id, extraction=ex, validation_issues=issues,
             field_confidence=scored["fields"], doc_confidence=scored["doc"],

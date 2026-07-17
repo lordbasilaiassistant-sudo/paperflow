@@ -40,6 +40,8 @@ PRODUCTS = [
 
 CURRENCIES = ["USD", "USD", "USD", "USD", "EUR", "GBP", "JPY"]
 TAX_RATES = [0.0, 0.05, 0.0625, 0.08, 0.0875, 0.10, 0.20]
+# JPY has no sub-unit; Japan's consumption tax is 8/10%.
+JPY_TAX_RATES = [0.08, 0.10]
 
 
 @dataclass
@@ -78,9 +80,20 @@ def make_invoice(rng: random.Random, *, currency: str | None = None, n_items: in
             it["amount"] = round(it["quantity"] * it["unit_price"], 2)
 
     subtotal = round(sum(it["amount"] for it in items), 2)
-    rate = 0.0 if jpy else rng.choice(TAX_RATES)
-    tax = round(subtotal * rate, 2)
+    rate = rng.choice(JPY_TAX_RATES) if jpy else rng.choice(TAX_RATES)
+    tax = float(round(subtotal * rate)) if jpy else round(subtotal * rate, 2)
     total = round(subtotal + tax, 2)
+
+    # Adjustments: a discount and/or shipping line shown separately, so the grand
+    # total legitimately does NOT equal subtotal + tax. Tests "which number is the
+    # total" and the routing path for docs that don't reconcile.
+    discount = shipping = 0.0
+    if edge == "adjustments":
+        discount = round(subtotal * rng.choice([0.05, 0.10, 0.15]), 2)
+        shipping = float(rng.choice([5, 10, 15, 25]))
+        if jpy:
+            discount, shipping = float(round(discount)), shipping * 100
+        total = round(subtotal + tax - discount + shipping, 2)
 
     date = f"{rng.randint(2024, 2026)}-{rng.randint(1, 12):02d}-{rng.randint(1, 28):02d}"
     inv_no = rng.choice([
@@ -106,5 +119,5 @@ def make_invoice(rng: random.Random, *, currency: str | None = None, n_items: in
             it["quantity"] = None
             it["unit_price"] = None
 
-    truth["_meta"] = {"address": address, "edge": edge}
+    truth["_meta"] = {"address": address, "edge": edge, "discount": discount, "shipping": shipping}
     return truth
