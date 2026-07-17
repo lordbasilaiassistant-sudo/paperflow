@@ -1,0 +1,82 @@
+from app.validation import validate
+
+GOOD = {
+    "vendor": "Acme Corp",
+    "date": "2026-03-18",
+    "invoice_no": "INV-001",
+    "line_items": [
+        {"description": "Widget", "quantity": 2.0, "unit_price": 5.0, "amount": 10.0},
+        {"description": "Gadget", "quantity": 1.0, "unit_price": 15.0, "amount": 15.0},
+    ],
+    "subtotal": 25.0,
+    "tax": 2.0,
+    "total": 27.0,
+    "currency": "USD",
+}
+
+
+def codes(issues):
+    return {i["code"] for i in issues}
+
+
+def test_clean_doc_passes():
+    assert validate(GOOD) == []
+
+
+def test_missing_required():
+    doc = {**GOOD, "vendor": None, "total": None}
+    got = codes(validate(doc))
+    assert "missing_required" in got
+
+
+def test_line_sum_mismatch():
+    doc = {**GOOD, "subtotal": 30.0, "total": 32.0}
+    got = codes(validate(doc))
+    assert "sum_mismatch" in got
+
+
+def test_total_mismatch():
+    doc = {**GOOD, "total": 99.0}
+    assert "total_mismatch" in codes(validate(doc))
+
+
+def test_tolerance_penny():
+    doc = {**GOOD, "total": 27.01}
+    # within ±0.01 -> no arithmetic error
+    assert "total_mismatch" not in codes(validate(doc))
+
+
+def test_bad_date():
+    doc = {**GOOD, "date": "18/03/2026 ish"}
+    assert "bad_date" in codes(validate(doc))
+
+
+def test_line_items_vs_total_when_no_subtotal():
+    doc = {**GOOD, "subtotal": None}
+    assert validate(doc) == []
+    doc2 = {**GOOD, "subtotal": None, "total": 40.0}
+    assert "sum_mismatch" in codes(validate(doc2))
+
+
+def test_negative_credit_note():
+    doc = {
+        **GOOD,
+        "line_items": [{"description": "Refund", "quantity": 1.0, "unit_price": -27.0, "amount": -27.0}],
+        "subtotal": -27.0,
+        "tax": 0.0,
+        "total": -27.0,
+    }
+    assert validate(doc) == []
+
+
+def test_item_math_warning():
+    doc = {
+        **GOOD,
+        "line_items": [
+            {"description": "Widget", "quantity": 2.0, "unit_price": 5.0, "amount": 25.0},
+        ],
+        "subtotal": 25.0,
+    }
+    issues = validate(doc)
+    assert "item_math" in codes(issues)
+    assert all(i["severity"] == "warning" for i in issues if i["code"] == "item_math")

@@ -1,0 +1,12 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+data/
+evals/results/*.json
+!evals/results/.gitkeep
+evals/fixtures/
+!evals/fixtures/.gitkeep
+.venv/
+venv/
