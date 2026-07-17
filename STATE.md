@@ -54,11 +54,11 @@ The first eval was partly self-fulfilling. Fixed, verified by 41 unit tests + li
 - Concurrency: pypdfium/tesseract native calls crash under threads (exit 127) → serialized with a lock; LLM
   calls stay concurrent. Free-tier 429s handled with backoff+jitter+Retry-After (workers=2 for the full run).
 
-## Unverified / not built yet
-- **P5 clean-clone test** — fresh clone in temp dir, follow README quickstart verbatim, fix friction. NOT done.
-- Repo created (github.com/lordbasilaiassistant-sudo/paperflow, empty) + CI secret LLM_API_KEY set + topics.
-  NOT pushed yet — push after P5.
-- CI (.github/workflows/ci.yml) written but not yet observed green on GitHub (runs on first push).
+## Shipped / verified on GitHub
+- Pushed to github.com/lordbasilaiassistant-sudo/paperflow (public, MIT, topics + homepage set).
+- CI observed GREEN on GitHub: lint-and-test (ruff + 41 pytest) and eval-subset (real 10-doc eval with the
+  LLM_API_KEY secret) both pass. Run 29609985154.
+- No open unverified claims.
 
 ## Key design decisions
 - No vision model: z.ai free tier only has text glm-4.5-flash (vision models returned "insufficient balance").
