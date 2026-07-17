@@ -1,8 +1,16 @@
 # paperflow — build state
 
-Updated: 2026-07-17
+Updated: 2026-07-17 (shipped)
 
-## Current phase: P1, P2, P3, P3b complete; P4 (README+CI) done → P5 clean-clone test next
+## Status: ALL PHASES COMPLETE + SHIPPED. Repo live at github.com/lordbasilaiassistant-sudo/paperflow, CI green.
+
+Final acceptance (all verified, executed, output checked):
+- P1–P5 all done. 41 unit tests green, lint clean, full eval run, README case study, CI green on GitHub.
+- Fresh-clone test passed: cloned to a temp dir, clean venv, `pip install`, `.env`, generate, `evals.run`,
+  `pytest`, and `uvicorn` upload all worked. One friction found + fixed (Windows `py` launcher note in README).
+- CI on GitHub is green with the REAL 10-doc eval executing (secret set): 10 docs, 100% on clean PDFs, 0 false accepts.
+- README numbers are generated from results by `evals.report_md`, so they match `evals.run` by construction.
+- Zero unverified claims: every "done" below was executed and its output checked.
 
 ## Final eval numbers (118 docs, glm-4.5-flash free tier, `python -m evals.run`)
 - Field accuracy **94.8%**; 77/118 (65.3%) fully correct.
@@ -61,8 +69,8 @@ The first eval was partly self-fulfilling. Fixed, verified by 41 unit tests + li
 - `LLM_EXTRA_BODY` env passes provider extras (z.ai `thinking: disabled`).
 
 ## Next step
-P5: fresh clone in a temp dir, follow README quickstart exactly with a clean venv, fix any friction, then
-push to GitHub and confirm CI goes green.
+Shipped. Optional future polish: record a real demo GIF (README references docs/ screenshots today);
+add more real-world hard fixtures (handwriting/CJK/multi-tax) if extending the eval.
 
 ## Blockers
 None.
