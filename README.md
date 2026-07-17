@@ -170,7 +170,7 @@ Requires Python 3.11+ and Tesseract (for scans/photos; digital PDFs work without
 ```bash
 git clone https://github.com/lordbasilaiassistant-sudo/paperflow.git
 cd paperflow
-python -m venv .venv && . .venv/bin/activate      # Windows: .venv\Scripts\activate
+python -m venv .venv && . .venv/bin/activate      # Windows: py -m venv .venv && .venv\Scripts\activate
 pip install -r requirements.txt
 
 cp .env.example .env                               # then add your key
@@ -178,6 +178,9 @@ cp .env.example .env                               # then add your key
 
 uvicorn app.main:app --reload                      # open http://127.0.0.1:8000
 ```
+
+> On Windows, if `python` isn't found, use the `py` launcher (`py -m venv .venv`). Once the venv is
+> activated, `python`, `pip`, `uvicorn`, and `pytest` all work as shown.
 
 Drag an invoice onto the page. To see the eval:
 
