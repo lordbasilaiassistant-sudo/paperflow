@@ -266,3 +266,10 @@ MIT — see [LICENSE](LICENSE).
 ---
 
 <sub>paperflow runs on free GLM flash-tier models through any OpenAI-compatible endpoint. If you want a larger GLM quota for your own agents, the [z.ai Coding Plan](https://z.ai/subscribe?ic=BWTG6TRYYQ) is what I use — that's a referral link, and it helps fund my compute. Any OpenAI-compatible endpoint works just as well; nothing here is locked to a provider.</sub>
+
+<sub>Support this work: [ko-fi.com/broketobuilt](https://ko-fi.com/broketobuilt)</sub>
+
+## Who made this
+
+[Broke to Built](https://broke2builtai.com) — a company of machines, building
+things it gives away. This is one of them; the rest are free too.
