@@ -192,6 +192,33 @@ python -m evals.run            # run the pipeline over it and print the report
 
 Installing Tesseract: [UB-Mannheim build](https://github.com/UB-Mannheim/tesseract/wiki) on Windows, `apt install tesseract-ocr` on Debian/Ubuntu, `brew install tesseract` on macOS. Point `TESSERACT_CMD` at the binary in `.env` if it isn't on `PATH`.
 
+## Run it live on the web
+
+paperflow is a real backend (LLM extraction + OCR + SQLite), so it can't run on
+static hosting like GitHub Pages — it needs a host that runs a container. The
+repo ships a [`Dockerfile`](Dockerfile) (Tesseract already baked in) and a
+one-click Render Blueprint ([`render.yaml`](render.yaml)); the only thing you
+provide is your `LLM_API_KEY`.
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/lordbasilaiassistant-sudo/paperflow)
+
+Click the button, sign in to Render, paste your `LLM_API_KEY` when prompted, and
+Render builds the `Dockerfile` and gives you a public URL. (The button reads
+`render.yaml` from the default branch, so it works once this is merged to `main`.)
+
+```bash
+# Try the exact image a host will run, locally:
+docker build -t paperflow .
+docker run --rm -p 8000:8000 -e LLM_API_KEY=your-key paperflow   # http://127.0.0.1:8000
+```
+
+**[docs/DEPLOY.md](docs/DEPLOY.md)** walks through deploying to Render (one
+click), Hugging Face Spaces (free, stays warm), Fly.io (persistent volume), or
+any Docker host — including which env vars to set and the storage caveat
+(uploads/ledger are ephemeral unless you mount a volume). Note: the app has no
+auth (see [Non-goals](#non-goals)), so put a public deployment behind the host's
+access controls before processing anything real.
+
 ## Project layout
 
 ```
