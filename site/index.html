@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>paperflow — invoices in, verified ledger data out</title>
+<meta name="description" content="A document-extraction pipeline that turns invoices and receipts into structured, verified ledger data — and knows which ones a human still needs to check. Runs on free GLM flash-tier models, ships with a real eval harness.">
+<meta property="og:title" content="paperflow — invoices in, verified ledger data out">
+<meta property="og:description" content="Extracts the fields an accountant needs, checks them against the document's own arithmetic, scores confidence per field, and routes only the shaky ones to a human. 118-doc eval, honest numbers.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Besley:ital,wght@0,500;0,700;1,500&family=Archivo:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#129534;</text></svg>">
+<style>
+  :root{
+    --paper:#F2F4EE; --paper-deep:#E7EBE1; --ink:#1C2A22; --graphite:#5D6B60;
+    --red:#B23A2B; --green:#2F6B4A; --manila:#E8DFC7; --rule:rgba(28,42,34,.12);
+    --font-display:"Besley","Georgia",serif;
+    --font-body:"Archivo","Segoe UI",sans-serif;
+    --font-mono:"Spline Sans Mono","Consolas",monospace;
+  }
+  *{box-sizing:border-box;margin:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--font-body); color:var(--ink); background-color:var(--paper);
+    background-image:
+      linear-gradient(90deg,transparent 63px,rgba(178,58,43,.14) 63px,rgba(178,58,43,.14) 65px,transparent 65px),
+      repeating-linear-gradient(180deg,transparent 0 27px,rgba(47,107,74,.07) 27px,rgba(47,107,74,.07) 28px);
+    font-size:16px; line-height:1.55; -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:var(--font-mono)}
+  a{color:var(--green); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:980px; margin:0 auto; padding:0 24px}
+
+  /* ---- masthead ---- */
+  header.masthead{border-bottom:2px solid var(--ink); background:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,0))}
+  .masthead-inner{max-width:980px; margin:0 auto; padding:22px 24px 16px; display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap}
+  .brand{font-family:var(--font-display); font-weight:700; font-size:1.5rem; letter-spacing:-.01em}
+  .brand .dot{color:var(--green)}
+  nav.top a{color:var(--ink); font-weight:500; margin-left:22px; font-size:.95rem}
+  nav.top a:hover{color:var(--green)}
+  @media(max-width:620px){nav.top{display:none}}
+
+  /* ---- hero ---- */
+  .hero{padding:64px 0 40px}
+  .kicker{font-family:var(--font-mono); font-size:.8rem; letter-spacing:.08em; text-transform:uppercase; color:var(--graphite); margin-bottom:18px}
+  .hero h1{font-family:var(--font-display); font-weight:700; font-size:clamp(2.1rem,5.2vw,3.4rem); line-height:1.05; letter-spacing:-.015em; max-width:16ch}
+  .hero p.lead{font-size:clamp(1.05rem,2.2vw,1.28rem); color:var(--ink); max-width:60ch; margin-top:20px; line-height:1.5}
+  .hero .sub{color:var(--graphite); max-width:64ch; margin-top:14px}
+  .cta{display:flex; gap:14px; flex-wrap:wrap; margin-top:32px}
+  .btn{display:inline-flex; align-items:center; gap:8px; font-weight:600; font-size:.98rem; padding:12px 20px; border-radius:3px; border:1.5px solid var(--ink); transition:transform .05s ease}
+  .btn:hover{text-decoration:none; transform:translateY(-1px)}
+  .btn-ink{background:var(--ink); color:var(--paper)}
+  .btn-ink:hover{color:var(--paper)}
+  .btn-quiet{background:transparent; color:var(--ink)}
+  .btn-quiet:hover{color:var(--ink); background:rgba(28,42,34,.05)}
+
+  /* ---- stat band ---- */
+  .stats{border-top:2px solid var(--ink); border-bottom:2px solid var(--ink); background:rgba(255,255,255,.35)}
+  .stats-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:0}
+  .stat{padding:26px 20px; text-align:center; border-left:1px solid var(--rule)}
+  .stat:first-child{border-left:0}
+  .stat .n{font-family:var(--font-display); font-weight:700; font-size:2rem; line-height:1; color:var(--green)}
+  .stat .l{font-size:.82rem; color:var(--graphite); margin-top:8px; line-height:1.35}
+  @media(max-width:720px){.stats-grid{grid-template-columns:repeat(2,1fr)} .stat:nth-child(3){border-left:0}}
+
+  /* ---- sections ---- */
+  section.block{padding:60px 0}
+  .eyebrow{font-family:var(--font-mono); font-size:.78rem; letter-spacing:.09em; text-transform:uppercase; color:var(--red); margin-bottom:12px}
+  h2.title{font-family:var(--font-display); font-weight:700; font-size:clamp(1.6rem,3.4vw,2.2rem); letter-spacing:-.01em; line-height:1.1}
+  .block > .wrap > p{max-width:64ch; margin-top:16px; color:var(--ink)}
+  .muted{color:var(--graphite)}
+  .divider{border:0; border-top:1px solid var(--rule); margin:0}
+
+  /* ---- pipeline strip ---- */
+  .pipe{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-top:34px}
+  .step{background:var(--paper-deep); border:1px solid var(--rule); border-radius:4px; padding:18px 16px}
+  .step .num{font-family:var(--font-mono); font-size:.75rem; color:var(--green); font-weight:600}
+  .step h3{font-family:var(--font-display); font-weight:600; font-size:1.05rem; margin:6px 0}
+  .step p{font-size:.86rem; color:var(--graphite); margin:0}
+  .route{display:flex; gap:14px; flex-wrap:wrap; margin-top:16px}
+  .route .lane{flex:1 1 260px; border-radius:4px; padding:16px 18px; border:1.5px solid}
+  .lane.accept{border-color:var(--green); background:rgba(47,107,74,.07)}
+  .lane.review{border-color:var(--red); background:rgba(178,58,43,.06)}
+  .lane b{font-family:var(--font-display)}
+  .lane .tag{font-family:var(--font-mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em}
+  .lane.accept .tag{color:var(--green)} .lane.review .tag{color:var(--red)}
+
+  /* ---- shots ---- */
+  .shots{display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:34px}
+  @media(max-width:760px){.shots{grid-template-columns:1fr}}
+  figure{margin:0}
+  figure img{width:100%; height:auto; display:block; border:1.5px solid var(--ink); border-radius:5px; box-shadow:0 8px 24px rgba(28,42,34,.12)}
+  figcaption{font-size:.85rem; color:var(--graphite); margin-top:10px}
+
+  /* ---- eval table ---- */
+  .table-scroll{overflow-x:auto; margin-top:26px; border:1px solid var(--rule); border-radius:5px}
+  table{width:100%; border-collapse:collapse; font-size:.92rem; background:rgba(255,255,255,.35)}
+  th,td{text-align:left; padding:11px 16px; border-bottom:1px solid var(--rule)}
+  thead th{font-family:var(--font-mono); font-size:.74rem; text-transform:uppercase; letter-spacing:.05em; color:var(--graphite); background:var(--paper-deep)}
+  tbody tr:last-child td{border-bottom:0}
+  td.num,th.num{text-align:right; font-family:var(--font-mono)}
+  .callout{margin-top:22px; padding:16px 18px; border-left:3px solid var(--green); background:rgba(47,107,74,.06); border-radius:0 4px 4px 0; font-size:.95rem}
+
+  /* ---- signals ---- */
+  .signals{display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:32px}
+  @media(max-width:760px){.signals{grid-template-columns:1fr}}
+  .sig{background:var(--paper-deep); border:1px solid var(--rule); border-radius:4px; padding:20px}
+  .sig .i{font-family:var(--font-mono); color:var(--green); font-weight:600; font-size:.8rem}
+  .sig h3{font-family:var(--font-display); font-weight:600; font-size:1.1rem; margin:8px 0}
+  .sig p{font-size:.9rem; color:var(--graphite); margin:0}
+
+  /* ---- run ---- */
+  pre.code{background:var(--ink); color:#E7EBE1; border-radius:6px; padding:20px 22px; overflow-x:auto; font-family:var(--font-mono); font-size:.86rem; line-height:1.7; margin-top:20px}
+  pre.code .c{color:#8FA894}
+  .note{font-size:.9rem; color:var(--graphite); margin-top:16px}
+
+  footer{border-top:2px solid var(--ink); padding:34px 0 48px; margin-top:20px}
+  footer .wrap{display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; align-items:baseline}
+  footer .links a{margin-left:20px; color:var(--ink); font-weight:500}
+  footer .links a:first-child{margin-left:0}
+  footer small{color:var(--graphite)}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="brand">paperflow<span class="dot">.</span></div>
+    <nav class="top">
+      <a href="#how">How it works</a>
+      <a href="#eval">Eval</a>
+      <a href="#confidence">Confidence</a>
+      <a href="#run">Run it</a>
+      <a href="https://github.com/lordbasilaiassistant-sudo/paperflow">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="kicker">Invoice &amp; receipt extraction · confidence routing · a real eval</div>
+      <h1>Invoices in. Verified ledger data out.</h1>
+      <p class="lead">paperflow turns invoices and receipts into structured, checked data — and tells you exactly which ones a human still needs to look at.</p>
+      <p class="sub">Built on one idea: on a cheap, fallible model, the <em>pipeline</em> carries the reliability, not the model. It extracts the fields an accountant needs, checks them against the document's own arithmetic and its source text, scores its own confidence per field, and routes only the shaky ones to a fast human-review UI. Everything runs on free GLM flash-tier models through any OpenAI-compatible endpoint.</p>
+      <div class="cta">
+        <a class="btn btn-ink" href="https://github.com/lordbasilaiassistant-sudo/paperflow">View on GitHub →</a>
+        <a class="btn btn-quiet" href="#run">Run it yourself</a>
+        <a class="btn btn-quiet" href="https://github.com/lordbasilaiassistant-sudo/paperflow/blob/main/docs/DEPLOY.md">Deploy it live</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- STAT BAND -->
+  <div class="stats">
+    <div class="stats-grid">
+      <div class="stat"><div class="n">118</div><div class="l">documents in the eval corpus</div></div>
+      <div class="stat"><div class="n">94.8%</div><div class="l">overall field accuracy</div></div>
+      <div class="stat"><div class="n">78.0%</div><div class="l">auto-accepted at 98.1% accuracy</div></div>
+      <div class="stat"><div class="n">~868</div><div class="l">tokens / document</div></div>
+    </div>
+  </div>
+
+  <!-- PROBLEM -->
+  <section class="block" id="problem">
+    <div class="wrap">
+      <div class="eyebrow">The problem</div>
+      <h2 class="title">"Just use an LLM" gets you 90% — then quietly hurts you.</h2>
+      <p>A bookkeeping team receives invoices as email PDFs, flatbed scans, and photos texted from a job site. Someone retypes each one. It's slow and the errors are expensive: a transposed total pays the wrong amount; a misread vendor pays the wrong company.</p>
+      <p>A flash model will confidently return a clean-looking JSON object with a wrong number in it, and nothing downstream knows. The hard part isn't extraction — it's <strong>knowing which extractions to trust</strong>. The design goal: auto-accept the documents the pipeline can verify, route the rest to a human, and measure honestly how often "auto-accept" is actually right.</p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- HOW IT WORKS -->
+  <section class="block" id="how">
+    <div class="wrap">
+      <div class="eyebrow">How it works</div>
+      <h2 class="title">One pipeline, from upload to ledger.</h2>
+      <p class="muted">The same <span class="mono">pipeline.process()</span> runs for every upload <em>and</em> every eval fixture — so the eval measures exactly what production runs.</p>
+      <div class="pipe">
+        <div class="step"><div class="num">01</div><h3>Ingest</h3><p>Digital PDFs read their text layer; scans and photos are rendered and OCR'd (Tesseract, Otsu binarize).</p></div>
+        <div class="step"><div class="num">02</div><h3>Extract</h3><p>An OpenAI-compatible / GLM flash call pulls fields and line items, with a brace-balanced JSON repair retry.</p></div>
+        <div class="step"><div class="num">03</div><h3>Normalize</h3><p>Amounts, dates, and currency are resolved to canonical form — locale-aware, so <span class="mono">1.234,56</span> doesn't get divided by 1000.</p></div>
+        <div class="step"><div class="num">04</div><h3>Validate</h3><p>Arithmetic reconciliation, required-field checks, ISO dates. A non-reconciling invoice is a <em>warning</em>, not a false error.</p></div>
+        <div class="step"><div class="num">05</div><h3>Score</h3><p>Per-field confidence blends model self-report, source grounding, and arithmetic corroboration.</p></div>
+      </div>
+      <div class="route">
+        <div class="lane accept"><div class="tag">score ≥ threshold · grounded · reconciled</div><p style="margin-top:6px"><b>Auto-accept</b> — no human needed. In the eval, 78% of documents land here at 98.1% field accuracy.</p></div>
+        <div class="lane review"><div class="tag">shaky · ungrounded · mismatch</div><p style="margin-top:6px"><b>Human review queue</b> — the document opens beside its fields with the low-confidence value and any arithmetic mismatch flagged for a fast fix.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- SCREENSHOTS -->
+  <section class="block" id="ui">
+    <div class="wrap">
+      <div class="eyebrow">The interface</div>
+      <h2 class="title">A ledger you can trust at a glance, and a review view built for speed.</h2>
+      <div class="shots">
+        <figure>
+          <img src="ledger.jpg" alt="The paperflow document ledger — every processed document with its status stamp and confidence bar" loading="lazy">
+          <figcaption>The ledger — every processed document with its status stamp and confidence bar.</figcaption>
+        </figure>
+        <figure>
+          <img src="review.jpg" alt="The review view — a document beside its extracted fields, with the arithmetic mismatch flagged and the low-confidence field marked" loading="lazy">
+          <figcaption>Review — the document beside its fields, arithmetic mismatch and low-confidence field marked.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- EVAL -->
+  <section class="block" id="eval">
+    <div class="wrap">
+      <div class="eyebrow">Eval results</div>
+      <h2 class="title">Honest, reproducible numbers — not a hand-picked demo.</h2>
+      <p>Every number here came out of <span class="mono">python -m evals.run</span> over 118 deterministic synthetic fixtures: clean PDFs, scans, skewed phone photos, multi-page invoices, and deliberately nasty edge cases. Model: <span class="mono">glm-4.5-flash</span> (free tier), reasoning disabled.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Category</th><th class="num">n</th><th class="num">Field accuracy</th><th class="num">Fully correct</th><th class="num">Auto-accept</th></tr></thead>
+          <tbody>
+            <tr><td>clean_pdf</td><td class="num">30</td><td class="num">100.0%</td><td class="num">30/30</td><td class="num">100.0%</td></tr>
+            <tr><td>multipage</td><td class="num">12</td><td class="num">100.0%</td><td class="num">12/12</td><td class="num">100.0%</td></tr>
+            <tr><td>edge</td><td class="num">24</td><td class="num">97.9%</td><td class="num">20/24</td><td class="num">75.0%</td></tr>
+            <tr><td>scan</td><td class="num">28</td><td class="num">94.9%</td><td class="num">13/28</td><td class="num">71.4%</td></tr>
+            <tr><td>photo</td><td class="num">24</td><td class="num">82.3%</td><td class="num">2/24</td><td class="num">50.0%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        The number that matters for a bookkeeping workflow isn't raw accuracy — it's the <strong>material false-accept rate</strong>: of the documents auto-accepted without a human, how many had a wrong vendor, date, amount, or currency. That's <strong>11 of 92 (12.0%)</strong> at the default threshold, and it dials toward zero as you raise the confidence bar (to 4 at threshold 0.95, trading away automation). The floor is genuine ambiguity — a bare <span class="mono">$</span> that could be USD or CAD — that no amount of model quality resolves from the page. That's why it isn't 100%, and why claiming 100% would be a red flag.
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- CONFIDENCE -->
+  <section class="block" id="confidence">
+    <div class="wrap">
+      <div class="eyebrow">How confidence works</div>
+      <h2 class="title">A flash model's self-confidence is a weak signal. So it's never trusted alone.</h2>
+      <p>The failure that matters most is a model returning numbers that are internally consistent but absent from the document. The confidence score blends three signals to catch exactly that:</p>
+      <div class="signals">
+        <div class="sig"><div class="i">01 · weak prior</div><h3>Model self-confidence</h3><p>The model's own per-field certainty — used only as a weak prior, because these models are cheerfully overconfident.</p></div>
+        <div class="sig"><div class="i">02 · the anchor</div><h3>Source grounding</h3><p>Does the value actually appear in the document text? A total the model is sure of but that appears nowhere is capped low — this is what stops a confident hallucination from auto-accepting.</p></div>
+        <div class="sig"><div class="i">03 · corroboration</div><h3>Arithmetic agreement</h3><p>Line items reconciling to a subtotal/total is evidence the numbers agree with each other — but only boosts fields that are also grounded, and only for non-trivial reconciliations.</p></div>
+      </div>
+      <p class="muted" style="margin-top:24px">A document auto-accepts only when its weighted score clears the threshold, no validation error is present, <em>and</em> the required fields (vendor, date, total) are each present, grounded, and above a floor — so a high average from reconciling financials can't carry a wrong vendor over the line.</p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- RUN -->
+  <section class="block" id="run">
+    <div class="wrap">
+      <div class="eyebrow">Run it yourself</div>
+      <h2 class="title">Clone it, drop in an invoice, watch it route.</h2>
+      <p class="muted">Requires Python 3.11+ and (for scans/photos) Tesseract. Digital PDFs work without it.</p>
+      <pre class="code"><span class="c"># get the code</span>
+git clone https://github.com/lordbasilaiassistant-sudo/paperflow.git
+cd paperflow
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt
+
+cp .env.example .env        <span class="c"># then add your key (any OpenAI-compatible endpoint)</span>
+uvicorn app.main:app --reload   <span class="c"># open http://127.0.0.1:8000</span>
+
+<span class="c"># see the eval</span>
+pip install -r requirements-dev.txt
+python -m evals.generate    <span class="c"># build the 118-fixture corpus</span>
+python -m evals.run         <span class="c"># run the pipeline and print the report</span></pre>
+      <p class="note">Want it live on the web instead of local? It ships a <a href="https://github.com/lordbasilaiassistant-sudo/paperflow/blob/main/Dockerfile">Dockerfile</a> (Tesseract baked in) and a one-click Render blueprint — see the <a href="https://github.com/lordbasilaiassistant-sudo/paperflow/blob/main/docs/DEPLOY.md">deploy guide</a>. Note: the app has no auth, so put any public deployment behind access controls before running real documents through it.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <div class="brand" style="font-size:1.2rem">paperflow<span class="dot">.</span></div>
+      <small>A portfolio pipeline — invoices &amp; receipts to verified ledger data. MIT licensed.</small>
+    </div>
+    <div class="links">
+      <a href="https://github.com/lordbasilaiassistant-sudo/paperflow">GitHub</a>
+      <a href="https://github.com/lordbasilaiassistant-sudo/paperflow#readme">README</a>
+      <a href="https://github.com/lordbasilaiassistant-sudo/paperflow/blob/main/docs/DEPLOY.md">Deploy</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
