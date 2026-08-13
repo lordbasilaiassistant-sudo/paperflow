@@ -200,6 +200,12 @@ repo ships a [`Dockerfile`](Dockerfile) (Tesseract already baked in) and a
 one-click Render Blueprint ([`render.yaml`](render.yaml)); the only thing you
 provide is your `LLM_API_KEY`.
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/lordbasilaiassistant-sudo/paperflow)
+
+Click the button, sign in to Render, paste your `LLM_API_KEY` when prompted, and
+Render builds the `Dockerfile` and gives you a public URL. (The button reads
+`render.yaml` from the default branch, so it works once this is merged to `main`.)
+
 ```bash
 # Try the exact image a host will run, locally:
 docker build -t paperflow .
