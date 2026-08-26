@@ -38,26 +38,10 @@ restarts, mount a **persistent volume** at `DATA_DIR` (noted per host below).
 
 ---
 
-## Option 1 — Render (one-click Blueprint)
+## Option 1 — Hugging Face Spaces (free, no card, stays warm)
 
-The repo ships a [`render.yaml`](../render.yaml) Blueprint.
-
-1. Push this repo to GitHub (done, if you're reading this there).
-2. In the [Render dashboard](https://dashboard.render.com/): **New → Blueprint**,
-   select this repo. Render reads `render.yaml` and creates the web service.
-3. When prompted, paste your `LLM_API_KEY`. Deploy.
-4. Open the URL Render gives you and drag an invoice onto the page.
-
-Notes:
-- The **free** web service spins down after ~15 min idle and cold-starts on the
-  next request (first hit takes a few seconds).
-- Free instances have **no persistent disk**, so the ledger resets on each
-  redeploy. To persist it, upgrade the instance and add a Disk mounted at
-  `/app/data` in the Render dashboard.
-
-## Option 2 — Hugging Face Spaces (free, stays warm)
-
-Good if you want an always-available public demo at no cost.
+The best default: nothing to pay, nothing to install, and the Space doesn't spin
+down between visitors the way a free container tier usually does.
 
 1. Create a new **Space** → SDK: **Docker** → blank template.
 2. Add these files to the Space repo: the whole `app/` folder, `requirements.txt`,
@@ -74,37 +58,48 @@ Good if you want an always-available public demo at no cost.
 5. The Space builds and serves the app. Spaces storage is ephemeral unless you
    attach persistent storage in Settings.
 
-## Option 3 — Fly.io (persistent volume, global)
+## Option 2 — Cloudflare Containers (what we run on)
+
+If you already pay for **Workers Paid** ($5/mo), Containers is included in that
+plan rather than billed on top — so this costs nothing extra on an account you
+already have. It runs the same `Dockerfile`.
 
 ```bash
-# One-time: install flyctl and log in (https://fly.io/docs/hands-on/install-flyctl/)
-fly launch --dockerfile Dockerfile --no-deploy   # generates fly.toml; accept defaults
-fly volumes create paperflow_data --size 1       # 1 GB persistent disk for the ledger
+npm i -g wrangler && wrangler login
+wrangler secret put LLM_API_KEY     # paste when prompted; never commit it
+wrangler deploy
 ```
 
-Then, in the generated `fly.toml`, point the app at the volume and internal port:
+`wrangler.toml` needs the container and a Durable Object to route to it:
 
 ```toml
-[http_service]
-  internal_port = 8000
+name = "paperflow"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
 
-[[mounts]]
-  source = "paperflow_data"
-  destination = "/app/data"
+[[containers]]
+class_name = "PaperflowContainer"
+image = "./Dockerfile"
+max_instances = 1
+
+[[durable_objects.bindings]]
+name = "CONTAINER"
+class_name = "PaperflowContainer"
 ```
 
-Finally set the key and deploy:
+Two things to know before you pick this:
+- **Billing is per running second**, and it starts when a request wakes the
+  container and stops when it sleeps. Bursty demo traffic fits the included
+  allowance comfortably; a container you deliberately keep always-on does not.
+- The container filesystem is ephemeral. For a ledger that survives restarts,
+  put the SQLite file on a **Durable Object** or **R2** rather than `DATA_DIR`.
 
-```bash
-fly secrets set LLM_API_KEY=sk-your-key
-fly deploy
-```
+## Option 3 — any other Docker host
 
-## Option 4 — Railway / any Docker host
-
-Railway auto-detects the `Dockerfile`. Create a project from this repo, add
-`LLM_API_KEY` under **Variables**, and deploy. Add a Volume mounted at
-`/app/data` if you want persistence.
+The contract is the same everywhere: build the `Dockerfile`, inject
+`LLM_API_KEY`, route HTTP to the container's `$PORT`, and mount a volume at
+`/app/data` if you want the ledger to persist. Anything that runs a container
+works — pick whichever one you already have an account with.
 
 Any host that runs a container works the same way — the contract is: build the
 `Dockerfile`, inject `LLM_API_KEY`, route HTTP to the container's `$PORT`.

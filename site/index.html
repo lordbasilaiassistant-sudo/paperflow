@@ -287,7 +287,7 @@ uvicorn app.main:app --reload   <span class="c"># open http://127.0.0.1:8000</sp
 pip install -r requirements-dev.txt
 python -m evals.generate    <span class="c"># build the 118-fixture corpus</span>
 python -m evals.run         <span class="c"># run the pipeline and print the report</span></pre>
-      <p class="note">Want it live on the web instead of local? It ships a <a href="https://github.com/lordbasilaiassistant-sudo/paperflow/blob/main/Dockerfile">Dockerfile</a> (Tesseract baked in) and a one-click Render blueprint — see the <a href="https://github.com/lordbasilaiassistant-sudo/paperflow/blob/main/docs/DEPLOY.md">deploy guide</a>. Note: the app has no auth, so put any public deployment behind access controls before running real documents through it.</p>
+      <p class="note">Want it live on the web instead of local? It ships a <a href="https://github.com/lordbasilaiassistant-sudo/paperflow/blob/main/Dockerfile">Dockerfile</a> with Tesseract baked in, so it runs free on Hugging Face Spaces or on Cloudflare Containers — see the <a href="https://github.com/lordbasilaiassistant-sudo/paperflow/blob/main/docs/DEPLOY.md">deploy guide</a>. Note: the app has no auth, so put any public deployment behind access controls before running real documents through it.</p>
     </div>
   </section>
 </main>
