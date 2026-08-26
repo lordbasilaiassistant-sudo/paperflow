@@ -9,7 +9,7 @@ It ships with the part most demos skip: **a real eval harness** that runs the pi
 [![ci](https://github.com/lordbasilaiassistant-sudo/paperflow/actions/workflows/ci.yml/badge.svg)](https://github.com/lordbasilaiassistant-sudo/paperflow/actions/workflows/ci.yml)
 &nbsp;·&nbsp; Python 3.11+ · FastAPI · SQLite · vanilla JS · MIT
 
-![The document ledger — every processed doc with its status stamp and confidence bar](docs/ledger.jpg)
+![Animated demo — six invoices uploaded, five auto-accepted, one arithmetic mismatch routed to human review, approved](docs/demo.gif)
 
 ---
 

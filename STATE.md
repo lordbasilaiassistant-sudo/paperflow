@@ -1,8 +1,20 @@
 # paperflow — build state
 
-Updated: 2026-07-17 (shipped)
+Updated: 2026-08-25 (TLC pass)
 
-## Status: ALL PHASES COMPLETE + SHIPPED. Repo live at github.com/lordbasilaiassistant-sudo/paperflow, CI green.
+## TLC pass 2026-08-25 (all verified by execution)
+- Re-verified health: 41/41 tests green, `ruff check .` clean, Pages site 200, CI green on main.
+- **Demo GIF** (docs/demo.gif + site/demo.gif, 287 KB, 4 frames): captured from the REAL pipeline —
+  fresh server, 6 fixtures uploaded over HTTP, LLM extraction live (5 auto-accepted, 1 arithmetic
+  mismatch → review), screens shot headless (upload → ledger → review split view → APPROVED stamp).
+  README hero + site screenshots section now embed it; docs/ledger.jpg removed (site/ has its own copy).
+- **Security hygiene**: `python-multipart>=0.0.18` floor (CVE-2024-53981 multipart DoS — old floor
+  allowed vulnerable installs), SECURITY.md with private-disclosure path.
+- **Dependabot**: pip + github-actions ecosystems, monthly, grouped — the idle repo can't rot now.
+- Tooling fix (outside repo): browser-automation skill's `--script` import never worked on Windows
+  drive-letter paths; patched to `pathToFileURL` in ~/.codegpt/skills/browser-automation/browser.mjs.
+
+## Status: SHIPPED 2026-07-17, maintained. Repo live at github.com/lordbasilaiassistant-sudo/paperflow.
 
 Final acceptance (all verified, executed, output checked):
 - P1–P5 all done. 41 unit tests green, lint clean, full eval run, README case study, CI green on GitHub.
